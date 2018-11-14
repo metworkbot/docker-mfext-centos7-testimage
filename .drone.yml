@@ -1,0 +1,41 @@
+pipeline:
+  docker:
+    image: metwork/drone-docker-specific-image:latest
+    commands:
+      - if test "$${FORCED_OS_VERSION}" != ""; then if test "$${FORCED_OS_VERSION}" != "centos7"; then echo "step bypass"; touch .drone_downstream_bypass; exit 0; fi; fi
+      - if test "${DRONE_BRANCH}" = "master"; then
+          docker build -t metwork/mfext-centos7-testimage:master -t metwork/mfext-centos7-testimage:latest --build-arg BRANCH=master --build-arg CACHEBUST=${DRONE_BUILD_NUMBER} .;
+        elif test "${DRONE_BRANCH}" = "integration"; then
+          docker build -t metwork/mfext-centos7-testimage:integration --build-arg BRANCH=integration --build-arg CACHEBUST=${DRONE_BUILD_NUMBER} .;
+        else
+          docker build -t metwork/mfservplugins-centos7-testimage:${DRONE_BRANCH} --build-arg BRANCH=master --build-arg CACHEBUST=${DRONE_BUILD_NUMBER} .;
+        fi
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root:/root
+    when:
+      event: push 
+  push_master:
+    image: metwork/drone-docker-specific-image:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root:/root
+    commands:
+      - if test "$${FORCED_OS_VERSION}" != ""; then if test "$${FORCED_OS_VERSION}" != "centos7"; then echo "step bypass"; touch .drone_downstream_bypass; exit 0; fi; fi
+      - docker push metwork/mfext-centos7-testimage:master
+      - docker push metwork/mfext-centos7-testimage:latest
+    when:
+      event: push 
+      branch: master
+  push_integration_pci:
+    image: metwork/drone-docker-specific-image:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root:/root
+    commands:
+      - docker push metwork/mfext-centos7-testimage:${DRONE_BRANCH}
+    when:
+      event: push 
+      branch: [ integration, pci_* ]
+
+branches: [ master, integration, ci_*, pci_* ]
